@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartReco AI – Smarter Picks. Best Price.</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>body{font-family:'Plus Jakarta Sans',sans-serif;background:#F4F7FE;color:#1E293B}.hero{background:linear-gradient(100deg,#1E40AF,#1D64F2 45%,#4F46E5)}.on{background:linear-gradient(135deg,#1D64F2,#1052D8);color:#fff}</style>
+</head>
+<body class="min-h-screen">
+<div id="toast" class="fixed top-5 right-5 z-[60] space-y-2"></div>
+
+<!-- AUTH -->
+<section id="auth" class="hidden min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md p-8">
+    <div class="flex items-center gap-3 mb-6"><div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center"><i class="fa-solid fa-bag-shopping text-white"></i></div>
+      <div><h1 class="font-extrabold text-lg leading-none">SmartReco AI</h1><p class="text-[11px] text-slate-500 mt-1">Smarter Picks. Just for You.</p></div></div>
+    <div class="flex bg-slate-100 rounded-xl p-1 mb-5 text-sm font-semibold">
+      <button id="t-login" onclick="authMode('login')" class="flex-1 py-2 rounded-lg">Log in</button><button id="t-reg" onclick="authMode('register')" class="flex-1 py-2 rounded-lg">Sign up</button></div>
+    <form id="auth-form" class="space-y-3" onsubmit="submitAuth(event)">
+      <input id="a-name" placeholder="Full name" autocomplete="name" class="hidden w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500">
+      <input id="a-email" type="email" required placeholder="Email" autocomplete="email" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500">
+      <input id="a-pass" type="password" required minlength="8" placeholder="Password (min 8 characters)" autocomplete="current-password" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500">
+      <p id="a-err" class="text-xs text-red-600 font-semibold hidden"></p>
+      <button class="w-full hero text-white font-bold rounded-xl py-3 text-sm">Continue</button></form>
+  </div>
+</section>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header class="bg-white/90 backdrop-blur sticky top-0 z-30 border-b border-slate-200 px-4 md:px-8 py-3 flex items-center gap-4">
+    <div class="flex items-center gap-2 font-extrabold"><i class="fa-solid fa-bag-shopping text-blue-600"></i><span class="hidden sm:block">SmartReco AI</span></div>
+    <div class="flex-1 max-w-2xl relative"><i class="fa-solid fa-magnifying-glass absolute left-4 top-3 text-slate-400 text-sm"></i>
+      <input id="q" onkeydown="if(event.key==='Enter')search()" placeholder="Try: wireless headphones under 25000" class="w-full bg-slate-100 text-sm pl-11 pr-20 py-2.5 rounded-xl focus:bg-white focus:outline-none border border-transparent focus:border-blue-500">
+      <button onclick="search()" class="absolute right-2 top-1.5 px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-lg">Search</button></div>
+    <button onclick="drawer(true)" class="relative p-2 text-slate-600"><i class="fa-solid fa-cart-shopping text-lg"></i><span id="cart-n" class="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] font-bold px-1.5 rounded-full">0</span></button>
+    <span id="hname" class="text-sm font-semibold hidden md:block"></span>
+    <button onclick="logout()" class="text-slate-500 hover:text-red-600" title="Log out"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </header>
+  <nav class="px-4 md:px-8 pt-4 flex gap-2 text-sm font-semibold overflow-x-auto" id="tabs"></nav>
+  <main class="p-4 md:p-8 max-w-7xl mx-auto" id="view"></main>
+</div>
+
+<!-- CART DRAWER -->
+<div id="cart-bg" onclick="drawer(false)" class="hidden fixed inset-0 bg-slate-900/40 z-40"></div>
+<aside id="cart" class="fixed top-0 right-0 h-full w-full max-w-sm bg-white z-50 shadow-2xl translate-x-full transition-transform flex flex-col">
+  <div class="p-4 border-b flex justify-between items-center"><h3 class="font-extrabold">Your Cart</h3><button onclick="drawer(false)"><i class="fa-solid fa-xmark"></i></button></div>
+  <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+  <div class="p-4 border-t"><div class="flex justify-between font-extrabold mb-3"><span>Total</span><span id="cart-total">₹0</span></div>
+    <button onclick="openCheckout()" class="w-full hero text-white font-bold rounded-xl py-3 text-sm">Checkout</button></div>
+</aside>
+
+<!-- MODAL -->
+<div id="modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target===this)closeModal()"><div id="modal-body" class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"></div></div>
+
+<script>
+const $=id=>document.getElementById(id), inr=n=>'₹'+Number(n).toLocaleString('en-IN');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let U=null, tab='store', mode='login', cartRows=[], wished=new Set();
+async function api(url,opt={}){const r=await fetch(url,{headers:{'Content-Type':'application/json'},credentials:'same-origin',...opt,body:opt.body?JSON.stringify(opt.body):undefined});
+  const j=await r.json().catch(()=>({})); if(r.status===401&&U){U=null;boot();} if(!r.ok)throw new Error(j.error||'Something went wrong'); return j;}
+function toast(m,bad){const d=document.createElement('div');d.className='px-4 py-3 rounded-xl text-sm font-semibold shadow-lg text-white '+(bad?'bg-red-600':'bg-slate-900');d.textContent=m;$('toast').appendChild(d);setTimeout(()=>d.remove(),3500);}
+
+// ---- auth ----
+function authMode(m){mode=m;$('a-name').classList.toggle('hidden',m==='login');$('a-name').required=m==='register';
+  $('t-login').className='flex-1 py-2 rounded-lg '+(m==='login'?'bg-white shadow':'');$('t-reg').className='flex-1 py-2 rounded-lg '+(m==='register'?'bg-white shadow':'');
+  $('a-pass').autocomplete=m==='login'?'current-password':'new-password';$('a-err').classList.add('hidden');}
+async function submitAuth(e){e.preventDefault();try{U=await api('/api/auth/'+mode,{method:'POST',body:{name:$('a-name').value,email:$('a-email').value,password:$('a-pass').value}});boot();}
+  catch(x){$('a-err').textContent=x.message;$('a-err').classList.remove('hidden');}}
+async function logout(){await api('/api/auth/logout',{method:'POST'});U=null;boot();}
+async function boot(){
+  if(!U){try{U=await api('/api/me');}catch{}}
+  $('auth').classList.toggle('hidden',!!U);$('app').classList.toggle('hidden',!U);if(!U){authMode('login');return;}
+  $('hname').textContent=U.name;await Promise.all([loadCart(),loadWish()]);go('store');}
+async function loadCart(){cartRows=await api('/api/cart');renderCart();}
+async function loadWish(){wished=new Set((await api('/api/wishlist')).map(p=>p.id));}
+
+// ---- nav ----
+const TABS=[['store','For You','fa-wand-magic-sparkles'],['wishlist','Wishlist','fa-heart'],['orders','Orders & Activity','fa-box'],['profile','Profile','fa-user']];
+function go(t){tab=t;$('tabs').innerHTML=TABS.map(([k,l,i])=>`<button onclick="go('${k}')" class="px-4 py-2 rounded-xl ${k===t?'on':'bg-white text-slate-600 border border-slate-200'}"><i class="fa-solid ${i} mr-1.5"></i>${l}</button>`).join('');
+  ({store:()=>store(),wishlist:wishlistView,orders:ordersView,profile:profileView})[t]();}
+function search(){go('store');}
+
+// ---- store ----
+function card(p){return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition overflow-hidden flex flex-col">
+  <div class="relative cursor-pointer" onclick="openProduct(${p.id})"><img src="${esc(p.image)}" class="w-full h-44 object-cover" alt="${esc(p.name)}">
+  ${p.match?`<span class="absolute top-3 left-3 bg-emerald-100 text-emerald-700 text-[11px] font-bold px-2 py-1 rounded-full">${p.match}% Match</span>`:''}
+  <button onclick="event.stopPropagation();wish(${p.id})" class="absolute top-3 right-3 w-8 h-8 bg-white rounded-full shadow ${wished.has(p.id)?'text-rose-500':'text-slate-400'}"><i class="fa-solid fa-heart"></i></button></div>
+  <div class="p-4 flex-1 flex flex-col"><p class="text-[11px] text-slate-400 font-bold uppercase">${esc(p.category)}</p>
+  <h3 class="font-bold text-sm mt-0.5 cursor-pointer" onclick="openProduct(${p.id})">${esc(p.name)}</h3>
+  <p class="text-xs text-amber-500 font-bold mt-1">${p.rating} ★</p>
+  <div class="mt-2 flex items-baseline gap-2"><span class="font-extrabold">${inr(p.price)}</span><s class="text-xs text-slate-400">${inr(p.mrp)}</s></div>
+  <div class="mt-auto pt-3 flex gap-2"><button onclick="openProduct(${p.id})" class="flex-1 text-xs font-bold border border-blue-600 text-blue-600 rounded-xl py-2">Compare prices</button>
+  <button ${p.stock?'':'disabled'} onclick="addCart(${p.id})" class="flex-1 text-xs font-bold bg-blue-600 text-white rounded-xl py-2 disabled:bg-slate-300">${p.stock?'Add to cart':'Sold out'}</button></div></div></div>`;}
+async function store(){const q=$('q').value.trim();$('view').innerHTML='<p class="text-slate-400 text-sm">Loading…</p>';
+  const list=await api('/api/products?q='+encodeURIComponent(q));
+  $('view').innerHTML=`<div class="hero rounded-2xl p-6 text-white mb-6"><h2 class="text-2xl font-extrabold">${q?`Results for “${esc(q)}”`:`Welcome back, ${esc(U.name.split(' ')[0])}!`}</h2>
+  <p class="text-blue-100 text-sm mt-1">${q?'Ranked by your interests, rating and budget.':'Ranked for your interests. Open any product to compare Amazon, Flipkart and our price.'}</p></div>
+  ${list.length?`<div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">${list.map(card).join('')}</div>`:'<p class="text-slate-500">No products matched. Try a different search.</p>'}`;}
+async function wish(id){const r=await api('/api/wishlist/'+id,{method:'POST'});r.wished?wished.add(id):wished.delete(id);toast(r.wished?'Added to wishlist':'Removed from wishlist');go(tab);}
+async function wishlistView(){const l=await api('/api/wishlist');$('view').innerHTML=l.length?`<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">${l.map(card).join('')}</div>`:'<p class="text-slate-500">Your wishlist is empty.</p>';}
+
+// ---- product + price comparison ----
+async function openProduct(id){
+  $('modal').classList.remove('hidden');$('modal-body').innerHTML='<p class="p-8 text-sm text-slate-400">Loading…</p>';
+  const [p,c]=await Promise.all([api('/api/products/'+id),api(`/api/products/${id}/compare`)]);
+  const rows=[...c.offers].sort((a,b)=>(a.price??1e12)-(b.price??1e12)).map(o=>{
+    const own=o.key==='store';
+    return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${o.best?'border-emerald-400 bg-emerald-50':'border-slate-200'}">
+    <div><p class="font-bold text-sm">${esc(o.retailer)} ${o.best?'<span class="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full ml-1">BEST PRICE</span>':''}</p>
+    <p class="text-xs text-slate-500">${o.price!=null?`<b class="text-slate-800 text-base">${inr(o.price)}</b>${o.delivery?' · '+esc(o.delivery):''}`:'Price not available – check live on site'}</p></div>
+    ${own?`<button ${o.stock?'':'disabled'} onclick="addCart(${p.id});closeModal()" class="text-xs font-bold bg-blue-600 text-white rounded-xl px-4 py-2 disabled:bg-slate-300">Buy here</button>`
+    :`<a href="/go/${p.id}/${o.key}" target="_blank" rel="noopener" class="text-xs font-bold bg-slate-900 text-white rounded-xl px-4 py-2 whitespace-nowrap">Buy on ${esc(o.retailer)} <i class="fa-solid fa-arrow-up-right-from-square ml-1"></i></a>`}</div>`;}).join('');
+  $('modal-body').innerHTML=`<div class="p-6"><div class="flex justify-between"><h3 class="font-extrabold text-lg">${esc(p.name)}</h3><button onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+  <div class="grid sm:grid-cols-2 gap-5 mt-4"><img src="${esc(p.image)}" class="rounded-xl w-full h-52 object-cover"><div class="text-sm"><p class="text-amber-500 font-bold">${p.rating} ★</p>
+  <p class="text-slate-600 mt-2">${esc(p.features)}</p><p class="mt-2 text-xs ${p.stock?'text-emerald-600':'text-red-600'} font-bold">${p.stock?p.stock+' in stock':'Out of stock'}</p></div></div>
+  <h4 class="font-extrabold mt-6 mb-2"><i class="fa-solid fa-scale-balanced text-blue-600 mr-1"></i>Price comparison</h4>
+  ${c.note?`<p class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-2.5 mb-2">${esc(c.note)}</p>`:''}
+  <div class="space-y-2">${rows}</div>
+  <p class="text-[11px] text-slate-400 mt-3">Amazon / Flipkart purchases are completed on their own sites; we redirect you there and cannot place those orders for you.</p></div>`;}
+function closeModal(){$('modal').classList.add('hidden');}
+
+// ---- cart & checkout ----
+function drawer(o){$('cart').classList.toggle('translate-x-full',!o);$('cart-bg').classList.toggle('hidden',!o);}
+async function addCart(id){try{cartRows=await api('/api/cart',{method:'POST',body:{productId:id}});renderCart();toast('Added to cart');}catch(e){toast(e.message,true);}}
+async function rmCart(id){cartRows=await api('/api/cart/'+id,{method:'DELETE'});renderCart();}
+function renderCart(){const n=cartRows.reduce((s,i)=>s+i.qty,0);$('cart-n').textContent=n;
+  $('cart-items').innerHTML=cartRows.length?cartRows.map(i=>`<div class="flex gap-3 items-center"><img src="${esc(i.image)}" class="w-14 h-14 rounded-lg object-cover"><div class="flex-1"><p class="text-xs font-bold">${esc(i.name)}</p><p class="text-xs text-slate-500">${inr(i.price)} × ${i.qty}</p></div><button onclick="rmCart(${i.id})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div>`).join(''):'<p class="text-sm text-slate-400">Your cart is empty.</p>';
+  $('cart-total').textContent=inr(cartRows.reduce((s,i)=>s+i.price*i.qty,0));}
+function openCheckout(){if(!cartRows.length)return toast('Cart is empty',true);drawer(false);$('modal').classList.remove('hidden');
+  const f=(id,ph,ex='')=>`<input id="${id}" required placeholder="${ph}" ${ex} class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3">`;
+  $('modal-body').innerHTML=`<form onsubmit="placeOrder(event)" class="p-6 space-y-3"><div class="flex justify-between"><h3 class="font-extrabold text-lg">Delivery details</h3><button type="button" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+  ${f('o-name','Full name',`value="${esc(U.name)}"`)}${f('o-phone','10-digit mobile','pattern="\\d{10}" inputmode="numeric"')}${f('o-line','Address (house, street, area)')}
+  <div class="grid grid-cols-2 gap-3">${f('o-city','City')}${f('o-pin','PIN code','pattern="\\d{6}" inputmode="numeric"')}</div>
+  <p class="text-xs bg-slate-100 rounded-xl p-3">Payment: <b>Cash on Delivery</b> · Total <b>${inr(cartRows.reduce((s,i)=>s+i.price*i.qty,0))}</b></p>
+  <button class="w-full hero text-white font-bold rounded-xl py-3 text-sm">Place order</button></form>`;}
+async function placeOrder(e){e.preventDefault();try{const r=await api('/api/orders',{method:'POST',body:{address:{name:$('o-name').value,phone:$('o-phone').value,line:$('o-line').value,city:$('o-city').value,pin:$('o-pin').value}}});
+  closeModal();await loadCart();toast('Order #'+r.orderId+' placed!');go('orders');}catch(x){toast(x.message,true);}}
+
+// ---- orders / activity / profile ----
+async function ordersView(){const [o,s]=await Promise.all([api('/api/orders'),api('/api/stats')]);
+  const stat=(l,v)=>`<div class="bg-white rounded-2xl border border-slate-100 p-4"><p class="text-2xl font-extrabold">${v}</p><p class="text-xs text-slate-500 font-medium">${l}</p></div>`;
+  $('view').innerHTML=`<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">${stat('Products viewed',s.viewed)}${stat('Wishlist',s.wishlist)}${stat('Orders',s.orders)}${stat('Retailer redirects',s.clicks.length)}</div>
+  <h3 class="font-extrabold mb-3">Your orders</h3><div class="space-y-3 mb-8">${o.length?o.map(x=>`<div class="bg-white rounded-2xl border border-slate-100 p-4"><div class="flex justify-between text-sm"><b>Order #${x.id}</b><span class="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-full">${esc(x.status)}</span></div>
+  <p class="text-xs text-slate-500">${esc(x.created)} · ${esc(x.payment)} · ${esc(x.address.line)}, ${esc(x.address.city)} ${esc(x.address.pin)}</p>
+  <ul class="text-sm mt-2">${x.items.map(i=>`<li>${esc(i.name)} × ${i.qty} — ${inr(i.price*i.qty)}</li>`).join('')}</ul><p class="font-extrabold mt-2">Total ${inr(x.total)}</p></div>`).join(''):'<p class="text-sm text-slate-500">No orders yet.</p>'}</div>
+  <h3 class="font-extrabold mb-3">Sent to Amazon / Flipkart / others</h3><div class="space-y-2">${s.clicks.length?s.clicks.map(c=>`<div class="bg-white rounded-xl border border-slate-100 p-3 text-sm flex justify-between"><span>${esc(c.name)}</span><span class="text-slate-500">${esc(c.retailer)} · ${esc(c.ts)}</span></div>`).join(''):'<p class="text-sm text-slate-500">Nothing yet.</p>'}</div>`;}
+const INTERESTS=['Electronics','Tech Gadgets','Smartphones','Fitness','Premium Quality','Work & Study','Gaming','Home & Living'];
+function profileView(){$('view').innerHTML=`<div class="grid md:grid-cols-2 gap-6 max-w-4xl"><form onsubmit="saveProfile(event)" class="bg-white rounded-2xl border border-slate-100 p-6 space-y-3">
+  <h3 class="font-extrabold">Profile & preferences</h3>
+  <input id="p-name" value="${esc(U.name)}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3"><input value="${esc(U.email)}" disabled class="w-full text-sm bg-slate-100 border border-slate-200 rounded-xl p-3 text-slate-500">
+  <input id="p-budget" type="number" min="0" value="${U.budget}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3" placeholder="Budget ₹">
+  <input id="p-role" value="${esc(U.role)}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3" placeholder="Role">
+  <div class="flex flex-wrap gap-2">${INTERESTS.map(i=>`<label class="text-xs font-semibold border rounded-full px-3 py-1.5 cursor-pointer"><input type="checkbox" class="mr-1 p-int" value="${i}" ${U.interests.includes(i)?'checked':''}>${i}</label>`).join('')}</div>
+  <button class="w-full hero text-white font-bold rounded-xl py-3 text-sm">Save</button></form>
+  <form onsubmit="savePass(event)" class="bg-white rounded-2xl border border-slate-100 p-6 space-y-3 self-start"><h3 class="font-extrabold">Change password</h3>
+  <input id="pw-c" type="password" required placeholder="Current password" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3"><input id="pw-n" type="password" minlength="8" required placeholder="New password (min 8)" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl p-3">
+  <button class="w-full bg-slate-900 text-white font-bold rounded-xl py-3 text-sm">Update password</button></form></div>`;}
+async function saveProfile(e){e.preventDefault();try{U=await api('/api/me',{method:'PUT',body:{name:$('p-name').value,budget:$('p-budget').value,role:$('p-role').value,interests:[...document.querySelectorAll('.p-int:checked')].map(x=>x.value)}});$('hname').textContent=U.name;toast('Profile saved – recommendations updated');}catch(x){toast(x.message,true);}}
+async function savePass(e){e.preventDefault();try{await api('/api/me/password',{method:'PUT',body:{current:$('pw-c').value,next:$('pw-n').value}});e.target.reset();toast('Password updated');}catch(x){toast(x.message,true);}}
+boot();
+</script>
+</body>
+</html>
